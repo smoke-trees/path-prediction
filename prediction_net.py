@@ -13,9 +13,11 @@ from keras.layers import Input, SpatialDropout1D, GRU, LSTM,Conv1D, concatenate,
 from keras.layers import GlobalAveragePooling1D, GlobalMaxPooling1D, Bidirectional 
 from keras.layers import CuDNNLSTM, CuDNNGRU
 from bearing_cal import calculate_initial_compass_bearing as cal
+import matplotlib.pyplot as plt
 
 copy = pd.read_csv("new_dat.csv")
 id_subset = [30,31,41,37962,27]
+id_ = 30
 speed = []
 latitude = []
 longitude = []
@@ -43,7 +45,8 @@ for i in range(1,len(pnew)):
 pnew.direction = direction
 pnew.to_csv('wassup.csv')
 pnew = pd.read_csv('no.csv')
-pnew = pnew.drop(['time','track_id','Unnamed: 0'],axis = 1)
+pnew = pnew[pnew.track_id == id_]
+pnew = pnew.drop(['time','track_id','Unnamed: 0','longitude','latitude'],axis = 1)
 
 def series_to_supervised(data, n_in=1, n_out=1, dropnan=True):
 	n_vars = 1 if type(data) is list else data.shape[1]
@@ -71,19 +74,16 @@ def series_to_supervised(data, n_in=1, n_out=1, dropnan=True):
 agg = series_to_supervised(pnew)
 values = agg.values
 
-timestep = 60
+timestep = 1
 train = values[:2000000,:]
 
-"""
 scaler = StandardScaler()
-train = scaler.fit_transform(train)
-"""
 
 X_train = []
 y_train = []
 for i in range(timestep, len(pnew)-1):
     X_train.append(train[i-timestep:i, :len(pnew.columns)])
-    y_train.append(train[i-timestep, [-3,-2]])
+    y_train.append(train[i-timestep, len(pnew.columns):])
 X_train, y_train = np.array(X_train), np.array(y_train)
 
 inp = Input(shape=(X_train.shape[1],X_train.shape[2]))
@@ -96,7 +96,7 @@ max_pool = GlobalMaxPooling1D()(x)
 avg_pool = GlobalAveragePooling1D()(x)
 x = concatenate([max_pool,avg_pool])
 x = Dense(1024)(x)
-preds = Dense(len(pnew.columns)-2)(x)
+preds = Dense(len(pnew.columns))(x)
 
 model = Model(inp,preds)
 
@@ -104,6 +104,11 @@ model.compile(loss = 'mse', optimizer = 'nadam')
 filepath = "weight-improvement-{epoch:02d}-{loss:4f}.hd5"
 checkpoint = ModelCheckpoint(filepath,monitor='val_loss',verbose=1,save_best_only=True,mode='min')
 callbacks=[checkpoint]
-model.fit(X_train,y_train,epochs = 20,batch_size = 32, callbacks = callbacks, validation_split = 0.25)
+model.fit(X_train,y_train,epochs = 20,batch_size = 1, callbacks = callbacks, validation_split = 0.25)
 
 y_pred = model.predict(X_train)
+model.save('model.h5')
+
+plt.plot(y_pred[:,0],y_pred[:,1], color = 'red')
+plt.plot(y_train[:,0],y_train[:,1], color = 'blue')
+plt.show()
