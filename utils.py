@@ -17,10 +17,6 @@ def calculateNewCoords(coords, speed, angle, timeDelay):
     return [newCoords[0] - 90, newCoords[1] - 180]
 
 
-
-print(calculateNewCoords([89, 179], 400, 45, 1))
-
-
     
     
 
