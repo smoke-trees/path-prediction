@@ -1,2 +1,8 @@
 .ipynb_checkpoints
+.ipynb_checkpoints/
+.ipynb_checkpoints./
+taxi/
+truck/
+*.csv
+
 
