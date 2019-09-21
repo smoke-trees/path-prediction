@@ -52,6 +52,26 @@ class DynamicPredictor:
             return
         self.intention_angle = self.alpha * self.direction_buffer[-1] + (1 - self.alpha) * self.intention_angle
 
+    
+
+    def predict(self, time_elapsed):
+        if len(self.time_stamps) < 2:
+            return
+
+        self.eval_grads()
+        # returns new speed and direction
+        predicted_direction = self.direction_buffer[-1] + (self.avg_direction_grad * time_elapsed)
+        predicted_speed = self.speed_buffer[-1] + (self.avg_speed_grad * time_elapsed)
+
+        if predicted_direction > self.max_direction:
+            predicted_direction = self.max_direction
+        if predicted_speed > self.max_speed:
+            predicted_speed = self.max_speed
+
+        
+        npd = self.beta * self.intention_angle + (1 - self.beta) * predicted_direction
+        return predicted_speed, npd
+
     def feed(self, speed, direction, time_stamp):
         if speed > self.max_speed:
             self.max_speed = speed
@@ -68,26 +88,10 @@ class DynamicPredictor:
         
         self.update_intention()
 
+        if len(self.time_stamps) > 2:
+            _, pd = self.predict(time_stamp - self.time_stamps[-1])
+            self.learn(pd)
 
-
-    def predict(self, time_elapsed):
-        if len(self.time_stamps) < 2:
-            return
-
-        self.eval_grads()
-        # returns new speed and direction
-        predicted_direction = self.direction_buffer[-1] + (self.avg_direction_grad * time_elapsed)
-        predicted_speed = self.speed_buffer[-1] + (self.avg_speed_grad * time_elapsed)
-
-        if predicted_direction > self.max_direction:
-            predicted_direction = self.max_direction
-        if predicted_speed > self.max_speed:
-            predicted_speed = self.max_speed
-
-        self.learn(predicted_direction)
-        npd = self.beta * self.intention_angle + (1 - self.beta) * predicted_direction
-        return predicted_speed, npd
-    
     def predict_coords(self, coords, t):
         ps, pd = self.predict(t)
         return calculateNewCoords(coords, ps, pd, t)
@@ -95,13 +99,14 @@ class DynamicPredictor:
 
 if __name__ == '__main__':
     dypre = DynamicPredictor()
-    dypre.feed(20, 1, 1)
-    dypre.feed(21, 2, 2)
-    dypre.feed(12, 3, 3)
-    dypre.feed(10, 4, 4)
+    dypre.feed(7, 1, 1)
+    dypre.feed(7, 2, 2)
+    dypre.feed(7, 3, 3)
+    dypre.feed(8, 4, 4)
     dypre.feed(9, 5, 5)
     dypre.feed(8, 6, 10)
-    dypre.feed(10, 10, 15)
+    dypre.feed(7, 10, 15)
     print(dypre.predict(1))
+    print(dypre.predict(4))
         
 
