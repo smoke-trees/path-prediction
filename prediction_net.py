@@ -5,13 +5,35 @@ Created on Sat Sep 21 11:44:20 2019
 @author: tanma
 """
 
-import pandas as pd
+import pandas as pd, numpy as np
+from sklearn.preprocessing import StandardScaler
 from keras.models import Model
-from keras.layers import Input, SpatialDropout1D, GRU, Conv1D, concatenate, Dense
+from keras.callbacks import ModelCheckpoint
+from keras.layers import Input, SpatialDropout1D, GRU, LSTM,Conv1D, concatenate, Dense
 from keras.layers import GlobalAveragePooling1D, GlobalMaxPooling1D, Bidirectional 
+from bearing_cal import calculate_initial_compass_bearing as cal
 
 copy = pd.read_csv("new_dat.csv")
-data = copy[['speed','longitude','latitude']]
+id_subset = [30,31,41,37962,27]
+speed = []
+latitude = []
+longitude = []
+
+for i in id_subset:
+    speed.append(list(map(float,list(copy['speed'][copy['id_x'] == i].values))))
+    latitude.append(list(map(float,list(copy['latitude'][copy['id_x'] == i].values))))
+    longitude.append(list(map(float,list(copy['longitude'][copy['id_x'] == i].values))))
+
+pnew = pd.DataFrame(columns = ['speed','longitude','latitude','direction'])
+pnew.speed = [item for sublist in speed for item in sublist]
+pnew.latitude = [item for sublist in latitude for item in sublist]
+pnew.longitude = [item for sublist in longitude for item in sublist]
+
+direction = [0]
+for i in range(1,len(pnew)):
+    direction.append(cal(pnew.iloc[i-1,2],pnew.iloc[i,2],pnew.iloc[i-1,1],pnew.iloc[i,1]))
+
+pnew.direction = direction
 
 def series_to_supervised(data, n_in=1, n_out=1, dropnan=True):
 	n_vars = 1 if type(data) is list else data.shape[1]
@@ -36,27 +58,37 @@ def series_to_supervised(data, n_in=1, n_out=1, dropnan=True):
 		agg.dropna(inplace=True)
 	return agg
 
-agg = series_to_supervised(data)
+agg = series_to_supervised(pnew)
 values = agg.values
 
 timestep = 1
-track_ids = len(copy['id_x'].unique())
-train = values[:(track_ids-2)*90, :]
-test = values[(track_ids-2)*90:track_ids*90, :]
+train = values[:2000000,:]
 
-train_X, train_y = train[:, :-1], train[:, -1]
-test_X, test_y = test[:, :-1], test[:, -1]
+scaler = StandardScaler()
+train = scaler.fit_transform(train)
 
-train_X = train_X.reshape((train_X.shape[0]//timestep, 90, train_X.shape[1]))
-test_X = test_X.reshape((test_X.shape[0]//timestep, 90, test_X.shape[1]))
+X_train = []
+y_train = []
+for i in range(timestep, len(pnew)-1):
+    X_train.append(train[i-timestep:i, :len(pnew.columns)])
+    y_train.append(train[i-timestep, len(pnew.columns):])
+X_train, y_train = np.array(X_train), np.array(y_train)
 
-inp = Input(shape=(train_X.shape[1],train_X.shape(2)))
+inp = Input(shape=(X_train.shape[1],X_train.shape[2]))
 x = SpatialDropout1D(0.2)(inp)
-x = Bidirectional(GRU(128, return_sequences=True,dropout=0.1,recurrent_dropout=0.1))(x)
-x = Conv1D(64, kernel_size = 3, padding = "valid", kernel_initializer = "glorot_uniform")(x)
+x = LSTM(128,dropout=0.1,recurrent_dropout=0.1, return_sequences = True)(x)
+x = Conv1D(64, kernel_size = 3, padding = "same", kernel_initializer = "glorot_uniform")(x)
 avg_pool = GlobalAveragePooling1D()(x)
 max_pool = GlobalMaxPooling1D()(x)
 x = concatenate([avg_pool, max_pool])
-preds = Dense(1)(x)
+preds = Dense(len(pnew.columns))(x)
 
 model = Model(inp,preds)
+
+model.compile(loss = 'mse', optimizer = 'nadam')
+filepath = "weight-improvement-{epoch:02d}-{loss:4f}.hd5"
+checkpoint = ModelCheckpoint(filepath,monitor='loss',verbose=1,save_best_only=True,mode='min')
+callbacks=[checkpoint]
+model.fit(X_train,y_train,epochs = 10,batch_size = 1)
+
+y_pred = model.predict(X_train)
