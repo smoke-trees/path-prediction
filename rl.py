@@ -7,18 +7,52 @@ from keras.layers import Activation
 from keras.layers import Dense
 import keras.backend as K
 import load as l
+from geopy import Point
+from geopy.distance import VincentyDistance
+import time
 
-model, graph = l.init()
+SPEED_MODEL = 'speed.h5'
+DISTANCE_MODEL = 'direction.h5'
 
-def calculateNewCoords(vector):
-    global graph
-    with graph.as_default():
-        x = model.predict(np.reshape(np.array(vector)[[0,3]],(1,1,2)))
-    newCoords = vector[:2]
+speed_model = load_model(SPEED_MODEL)
+distance_model = load_model(DISTANCE_MODEL)
+
+def speed(vector):
+    x = speed_model.predict(np.reshape(vector[1],(1,1,1)))
+#    reward = K.tanh(1/math.sqrt((newCoords[0]-x[0])**0.5 - (newCoords[1]-x[1])**0.5))*10
+
+    return x
+
+def direction(vector):
+
+    x = distance_model.predict(np.reshape(vector[3],(1,1,1)))
+#    reward = K.tanh(1/math.sqrt((newCoords[0]-x[0])**0.5 - (newCoords[1]-x[1])**0.5))*10
+    return x
+
+def NewCoords(vector,timeDelay = 1/3600):
+    speed = vector[0]
+    direction = vector[3]
+    distance_km = speed * timeDelay
+    distance_miles = distance_km * 0.621371
+    return VincentyDistance(miles=distance_miles).destination(Point(vector[2],vector[1]),direction)
+
+"""
+def NewCoords(vector, timeDelay = 1):
+    newCoords = vector[1:3]
+    angle = vector[3]/3600
+    speed = vector[0]
+
+    #convert new coords to mod 180, 360
+    newCoords[0] += 90
+    newCoords[1] += 360
+
+    newCoords[0] += (speed * math.cos(math.pi * angle / 180) * timeDelay) % 360
+    newCoords[1] = (newCoords[1] + speed * math.sin(math.pi * angle / 180) * timeDelay) % 360
+
+    if newCoords[0] > 180:
+        newCoords[0] = 360 - newCoords[0]
     
-    reward = K.tanh(1/math.sqrt((newCoords[0]-x[0])**0.5 - (newCoords[1]-x[1])**0.5))*10
-
-    return x, reward
+    return [newCoords[0] - 90, newCoords[1] - 180]
 
 
 model=Sequential()
@@ -44,7 +78,7 @@ for i in range(50):
         
         
         #next_state,reward,done,observation = env.step(action)
-        next_state, reward = calculateNewCoords(state,action[0],action[1],1)
+        next_state, reward = NewCoords(state,action[0],action[1],1)
         
         next_state = np.array([next_state])
 
@@ -80,3 +114,5 @@ for i in range(20):
         #next_state, reward, done, observation = env.step(action)
         next_state, reward = calculateNewCoords(state,action[0],action[1],1)
         state = next_state
+
+"""
