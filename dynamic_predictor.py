@@ -73,6 +73,7 @@ class DynamicPredictor:
         return predicted_speed, npd
 
     def feed(self, speed, direction, time_stamp):
+        print(speed,direction,time_stamp)
         if speed > self.max_speed:
             self.max_speed = speed
         if direction > self.max_direction:
