@@ -1,7 +1,7 @@
 import pandas as pd
 
 
-all_truck = pd.read_csv('wassup_with_ti.csv')
+all_truck = pd.read_csv('wassup.csv')
 print(all_truck.shape)
 all_truck['time'] = pd.to_datetime(all_truck['time'], format = "%Y-%m-%d %H:%M:%S.%f")
 all_truck = all_truck.set_index('time')
@@ -22,4 +22,4 @@ for i in good_paths:
 
 new_l = pd.concat(l)
 
-new_l.to_csv('upscaled_new_dat_with_dir.csv')
+new_l.to_csv('no.csv')
