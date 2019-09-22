@@ -13,6 +13,7 @@ from keras.layers import Input, SpatialDropout1D, GRU, LSTM,Conv1D, concatenate,
 from keras.layers import GlobalAveragePooling1D, GlobalMaxPooling1D, Bidirectional 
 from keras.layers import CuDNNLSTM, CuDNNGRU
 from bearing_cal import calculate_initial_compass_bearing as cal
+from geographiclib.geodesic import Geodesic
 import matplotlib.pyplot as plt
 
 copy = pd.read_csv("new_dat.csv")
@@ -38,14 +39,19 @@ pnew.longitude = [item for sublist in longitude for item in sublist]
 pnew.time = [item for sublist in time for item in sublist]
 pnew.track_id = [item for sublist in track_id for item in sublist]
 
+def get_bearing(lat1,lat2,long1,long2):
+    brng = Geodesic.WGS84.Inverse(lat1,long1,lat2,long2)['azi1']
+    return brng
+
 direction = [0]
 for i in range(1,len(pnew)):
-    direction.append(cal(pnew.iloc[i-1,2],pnew.iloc[i,2],pnew.iloc[i-1,1],pnew.iloc[i,1]))
+    direction.append(get_bearing(pnew.iloc[i-1,2],pnew.iloc[i,2],pnew.iloc[i-1,1],pnew.iloc[i,1]))
 
 pnew.direction = direction
 pnew.to_csv('wassup.csv')
 pnew = pd.read_csv('no.csv')
 pnew = pnew[pnew.track_id == id_]
+copy = pnew.drop(['time','track_id','Unnamed: 0'],axis = 1)
 pnew = pnew.drop(['time','track_id','Unnamed: 0','longitude','latitude'],axis = 1)
 
 def series_to_supervised(data, n_in=1, n_out=1, dropnan=True):
@@ -71,13 +77,15 @@ def series_to_supervised(data, n_in=1, n_out=1, dropnan=True):
 		agg.dropna(inplace=True)
 	return agg
 
-agg = series_to_supervised(pnew)
+whatever = pnew.iloc[:,0].values.reshape((-1,3581)).flatten() + np.random.randint(low = -5,high = 5,size = (pnew.shape[0]))
+pnew['speed'] = whatever
+scaler = StandardScaler()
+what = scaler.fit_transform(pnew)
+agg = series_to_supervised(what)
 values = agg.values
 
 timestep = 1
 train = values[:2000000,:]
-
-scaler = StandardScaler()
 
 X_train = []
 y_train = []
@@ -109,6 +117,9 @@ model.fit(X_train,y_train,epochs = 20,batch_size = 1, callbacks = callbacks, val
 y_pred = model.predict(X_train)
 model.save('model.h5')
 
-plt.plot(y_pred[:,0],y_pred[:,1], color = 'red')
-plt.plot(y_train[:,0],y_train[:,1], color = 'blue')
+plt.plot(y_pred[5:,0],y_pred[5:,1], color = 'red')
+plt.plot(y_train[5:,0],y_train[5:,1], color = 'blue')
 plt.show()
+
+vector = np.array(copy.iloc[5,:].values)
+x = model.predict(np.reshape(vector[[0,3]],(1,1,2)))
