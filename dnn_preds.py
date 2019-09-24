@@ -44,6 +44,14 @@ for i in range(1,len(pnew)):
 
 pnew.direction = direction
 
+id_ = 30
+pnew = pd.read_csv('no.csv')
+pnew = pnew[pnew.track_id == id_]
+copy = pnew.drop(['time','track_id','Unnamed: 0'],axis = 1)
+pnew = pnew.drop(['time','track_id','Unnamed: 0','longitude','latitude'],axis = 1)
+
+train = pnew.iloc[:, 5:6]
+
 X_train = []
 y_train = []
 for i in range(1, len(pnew)-1):
@@ -58,4 +66,4 @@ for i in range(2, 10):
 enc_out = Dense(1024)(enc)
 encoder = Model(encoder_inp, enc_out)
 
-encoder.fit()
+encoder.fit(X_train,y_train)
