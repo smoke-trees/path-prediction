@@ -14,11 +14,15 @@ import seaborn as sns
 
 data = pd.read_csv('no.csv')
 data = data.drop(['time','Unnamed: 0'],axis = 1)
-subset = data.loc[data["track_id"] == 30]
+subset = data.loc[data["track_id"] == 37962]
+print("total {} points".format(str(len(subset))))
+sec = input("enter the timestamp from which you want to predict the path:")
+
 speed = [subset.iloc[0,:].values[0]]
 direction = [subset.iloc[0,:].values[3]]
 newcoords = [[subset.iloc[0,:].values[2],subset.iloc[0,:].values[1]]]
 vector = []
+
 for i in subset.values:
     x = rl.speed(i).tolist()[0][0]
     y = rl.direction(i).tolist()[0][0]

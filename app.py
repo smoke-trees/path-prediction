@@ -14,14 +14,14 @@ import seaborn as sns
 
 data = pd.read_csv('no.csv')
 data = data.drop(['time','Unnamed: 0'],axis = 1)
-subset = data.loc[data["track_id"] == 30]
+subset = data.loc[data["track_id"] == 27]
 vector = subset.iloc[-10,:-1]
 speed = [vector[0]]
 direction = [vector[3]]
 newcoords = [[vector[2],vector[1]]]
 
 
-for i in range(10):
+for i in range(20):
     x = rl.speed(vector)
     y = rl.direction(vector)
     z = list(rl.NewCoords(vector))[:2]
