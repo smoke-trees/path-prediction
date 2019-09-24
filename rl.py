@@ -36,25 +36,6 @@ def NewCoords(vector,timeDelay = 1/3600):
     distance_miles = distance_km * 0.621371
     return VincentyDistance(miles=distance_miles).destination(Point(vector[2],vector[1]),direction)
 
-"""
-def NewCoords(vector, timeDelay = 1):
-    newCoords = vector[1:3]
-    angle = vector[3]/3600
-    speed = vector[0]
-
-    #convert new coords to mod 180, 360
-    newCoords[0] += 90
-    newCoords[1] += 360
-
-    newCoords[0] += (speed * math.cos(math.pi * angle / 180) * timeDelay) % 360
-    newCoords[1] = (newCoords[1] + speed * math.sin(math.pi * angle / 180) * timeDelay) % 360
-
-    if newCoords[0] > 180:
-        newCoords[0] = 360 - newCoords[0]
-    
-    return [newCoords[0] - 90, newCoords[1] - 180]
-
-
 model=Sequential()
 model.add(Dense(24,input_dim=2,activation='relu'))
 model.add(Dense(24,activation='relu'))
@@ -112,7 +93,6 @@ for i in range(20):
         env.render()
         action = np.argmax(model.predict(np.array([state])))
         #next_state, reward, done, observation = env.step(action)
-        next_state, reward = calculateNewCoords(state,action[0],action[1],1)
+        next_state, reward = NewCoords(state,action[0],action[1],1)
         state = next_state
 
-"""
